@@ -93,7 +93,8 @@ class App extends Component {
 
   handleSelectDate = ({ target: { id, value } }) => {
       console.log('handleSelectDate', id, value);
-      this.setState({ [id]: moment(value).toISOString() });
+      value = moment(value).toISOString();
+      this.setState({ [id]: value });
       this.fetchCalendarEvents({ [id]: value });
   }
 
