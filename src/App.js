@@ -22,16 +22,14 @@ import {
 import './App.css';
 
 import moment from 'moment';
-import 'moment/locale/it';
-moment.locale('it');
 
 const GOOGLE_OAUTH_CLIENT_ID = '926248487871-4l26d98gnc9p5623vj1hovgpulclvlr8.apps.googleusercontent.com';
 
 class App extends Component {
 
   state = {
-      from: moment().startOf('week').toISOString(),
-      to: moment().endOf('week').toISOString(),
+      from: moment().startOf('isoweek').toISOString(),
+      to: moment().endOf('isoweek').toISOString(),
   };
 
   parseToken = () => {
