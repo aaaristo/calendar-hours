@@ -49,7 +49,11 @@ class App extends Component {
 
   authenticate = () => {
      var clientId = GOOGLE_OAUTH_CLIENT_ID,
-         callbackUrl = window.location.origin,
+         callbackUrl = (
+             window.location.origin.indexOf('github.io') > -1 ?
+             window.location.origin + '/calendar-hours/' :
+             window.location.origin
+         ),
          scope = "https://www.googleapis.com/auth/calendar.readonly",
          reqUrl = "https://accounts.google.com/o/oauth2/auth?client_id="+clientId+"&redirect_uri="+callbackUrl+"&scope="+scope+"&response_type=token";
 
