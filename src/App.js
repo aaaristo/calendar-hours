@@ -23,270 +23,179 @@ import './App.css';
 
 import moment from 'moment';
 
-const GOOGLE_OAUTH_CLIENT_ID = '926248487871-4l26d98gnc9p5623vj1hovgpulclvlr8.apps.googleusercontent.com';
+const durationAsHours = ({ start, end }) => (
+    Math.round(((
+        moment(end.dateTime).unix() -
+        moment(start.dateTime).unix()
+    ) / 3600) * 100) / 100
+);
 
-class App extends Component {
+const EventGroup = ({ summary, hours, events }) => {
+    const header = (
+        <div>
+            <span style={{ cursor: 'pointer' }}>{summary}</span>
+            <span className="pull-right">{hours}h</span>
+        </div>
+    );
+    return (
+        <Panel header={header} eventKey={i} key={i}>
+            <Table striped>
+                <thead>
+                    <tr>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Hours</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {events.map((event, i) => (
+                        <tr key={i}>
+                            <td>{moment(event.start.dateTime).format('LLL')}</td>
+                            <td>{moment(event.end.dateTime).format('LLL')}</td>
+                            <td>{this.durationAsHours(event)}</td>
+                            <td>{event.description}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </Table>
+        </Panel>
+    );
+};
 
-  state = {
-      from: moment().startOf('isoweek').toISOString(),
-      to: moment().endOf('isoweek').toISOString(),
-  };
+const Events = ({ events }) => {
+    const bySummary = groupBy(events, 'summary');
 
-  parseToken = () => {
-      const { hash } = window.location;
-      const pars = hash ? hash.substring(1).split('&') : [];
+    let groups = [];
 
-      const token = {};
+    console.log('bySummary', bySummary);
 
-      for (const par of pars) {
-          const [key, value] = par.split('=');
+    for (const summary of keys(bySummary)) {
+        const events = bySummary[summary];
+        groups.push({
+            summary,
+            hours: reduce(events, (hours, event) => (
+                hours + this.durationAsHours(event)
+            ), 0),
+            events,
+        });
+    }
 
-          token[key] = value;
-      }
+    groups = sortBy(groups, ({ hours }) => -hours);
 
-      return token;
-  }
+    return (
+        <div id="event-list">
+            <Accordion>
+                {groups.map((group, i) => (
+                    <EventGroup
+                        key={i}
+                        {...group}
+                    />
+                ))}
+            </Accordion>
+        </div>
+    );
+};
 
-  authenticate = () => {
-     var clientId = GOOGLE_OAUTH_CLIENT_ID,
-         callbackUrl = (
-             window.location.origin.indexOf('github.io') > -1 ?
-             window.location.origin + '/calendar-hours/' :
-             window.location.origin
-         ),
-         scope = "https://www.googleapis.com/auth/calendar.readonly",
-         reqUrl = "https://accounts.google.com/o/oauth2/auth?client_id="+clientId+"&redirect_uri="+callbackUrl+"&scope="+scope+"&response_type=token";
+const SelectDate = ({ id, value, onChange }) => (
+    <FormGroup
+        controlId={id}
+    >
+        <FormControl
+            type="date"
+            value={moment(value).format('YYYY-MM-DD')}
+            placeholder={id}
+            onChange={({ target }) => onChange(target)}
+        />
+    </FormGroup>
+);
 
-     window.location = reqUrl;
-  }
+const SelectCalendar = ({ calendars, calendar_id, onChange }) => (
+    <FormGroup
+        controlId="calendars"
+    >
+      <FormControl
+          componentClass="select"
+          value={calendar_id}
+          onChange={({ target }) => onChange(target)}
+      >
+        <option value="">- select calendar -</option>
+        {calendars.map(({ id, summary }, i) => (
+            <option key={i} value={id}>{summary}</option>
+        ))}
+      </FormControl>
+    </FormGroup>
+);
 
-  googleAPI = (url) => {
-      return url + (
-          url.indexOf('?') > -1 ?
-          '&' :
-          '?'
-      ) + 'access_token=' + this.token.access_token;
-  }
+const Home = ({ onChange }) => {
+    let content;
 
-  fetchCalendars = async () => {
-      const response = await fetch(this.googleAPI('https://www.googleapis.com/calendar/v3/users/me/calendarList'), { mode: `cors` });
-      let calendars = sortBy((await response.json()).items, 'summary');
-      this.setState({ calendars });
-  }
+    const { calendars, events, calendar_id } = this.state;
 
-  fetchCalendarEvents = async (changes) => {
-      this.setState({ events: [] });
-      const { calendar_id, from, to } = extend({}, this.state, changes);
+    if (calendars) {
+        content = (
+            <div>
+                <Row>
+                    <Col md={12}>
+                        <SelectCalendar
+                            calendars={calendars}
+                            calendar_id={calendar_id}
+                            onChange={onChange}
+                        />
+                    </Col>
+                </Row>
+                <Row>
+                    <Col md={6}>
+                        <SelectDate
+                            id="from"
+                            value={from}
+                            onChange={onChange}
+                        />
+                    </Col>
+                    <Col md={6}>
+                        <SelectDate
+                            id="to"
+                            value={to}
+                            onChange={onChange}
+                        />
+                    </Col>
+                </Row>
+                <Row>
+                    <Col md={12}>
+                        {events && events.length && <Events events={events}/>}
+                    </Col>
+                </Row>
+            </div>
+        );
+    } else {
+        content = 'Loading calendars...';
+    }
 
-      if (!calendar_id) return;
+    return (
+        <div className="App-intro">
+            {content}
+        </div>
+    );
+};
 
-      const response = await fetch(this.googleAPI(`https://www.googleapis.com/calendar/v3/calendars/${calendar_id}/events?singleEvents=true&timeMin=${from}&timeMax=${to}`), { mode: `cors` });
-      let events = sortBy((await response.json()).items, 'summary');
-      this.setState({ events });
-      console.log('events', events);
-  }
+const Login = ({ api }) => (
+    <p className="App-intro">
+      <Button
+          bsStyle="primary"
+          bsSize="large"
+          onClick={() => api.authenticate()}
+      >Connect to Google Calendar</Button>
+    </p>
+);
 
-  handleSelectCalendar = ({ target: { value: calendar_id } }) => {
-      this.setState({ calendar_id });
-      this.fetchCalendarEvents({ calendar_id });
-  }
-
-  handleSelectDate = ({ target: { id, value } }) => {
-      console.log('handleSelectDate', id, value);
-      value = moment(value).toISOString();
-      this.setState({ [id]: value });
-      this.fetchCalendarEvents({ [id]: value });
-  }
-
-  componentWillMount() {
-      const token = this.token = this.parseToken();
-
-      console.log('token', token);
-
-      if (token) {
-          this.fetchCalendars();
-      }
-  }
-
-  renderConnect = () => {
-      return (
-          <p className="App-intro">
-            <Button
-                bsStyle="primary"
-                bsSize="large"
-                onClick={this.authenticate}
-            >Connect to Google Calendar</Button>
-          </p>
-      );
-  }
-
-  renderCalendars = () => {
-      const { calendars, calendar_id } = this.state;
-
-      console.log('calenadars', calendars);
-
-      return (
-          <FormGroup
-              controlId="calendars"
-          >
-            <FormControl
-                componentClass="select"
-                value={calendar_id}
-                onChange={this.handleSelectCalendar}
-            >
-              <option value="">- select calendar -</option>
-              {calendars.map(({ id, summary }, i) => (
-                  <option key={i} value={id}>{summary}</option>
-              ))}
-            </FormControl>
-          </FormGroup>
-      );
-  }
-
-  renderDate = (id) => {
-      const value = this.state[id];
-
-      console.log('renderDate', id, value);
-
-      return (
-          <FormGroup
-              controlId={id}
-          >
-              <FormControl
-                  type="date"
-                  value={moment(value).format('YYYY-MM-DD')}
-                  placeholder={id}
-                  onChange={this.handleSelectDate}
-              />
-          </FormGroup>
-      );
-  }
-
-  durationAsHours = ({ start, end }) => (
-      Math.round(((moment(end.dateTime).unix() - moment(start.dateTime).unix()) / 3600) * 100) / 100
-  )
-
-  renderEvent = (event) => {
-      return (
-          <tr>
-              <td>{moment(event.start.dateTime).format('LLL')}</td>
-              <td>{moment(event.end.dateTime).format('LLL')}</td>
-              <td>{this.durationAsHours(event)}</td>
-              <td>{event.description}</td>
-          </tr>
-      );
-  }
-
-  renderGroup = ({ summary, hours, events }, i) => {
-      const header = (
-          <div>
-              <span style={{ cursor: 'pointer' }}>{summary}</span>
-              <span className="pull-right">{hours}h</span>
-          </div>
-      );
-      return (
-          <Panel header={header} eventKey={i} key={i}>
-              <Table striped>
-                  <thead>
-                      <tr>
-                          <th>Start</th>
-                          <th>End</th>
-                          <th>Hours</th>
-                          <th>Description</th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      {events.map(this.renderEvent)}
-                  </tbody>
-              </Table>
-          </Panel>
-      );
-  }
-
-  renderEvents = () => {
-      const { events } = this.state;
-
-      const bySummary = groupBy(events, 'summary');
-
-      let groups = [];
-
-      console.log('bySummary', bySummary);
-
-      for (const summary of keys(bySummary)) {
-          const events = bySummary[summary];
-          groups.push({
-              summary,
-              hours: reduce(events, (hours, event) => (
-                  hours + this.durationAsHours(event)
-              ), 0),
-              events,
-          });
-      }
-
-      groups = sortBy(groups, ({ hours }) => -hours);
-
-      return (
-          <div id="event-list">
-              <Accordion>
-                  {groups.map(this.renderGroup)}
-              </Accordion>
-          </div>
-      );
-  }
-
-  renderHours = () => {
-      let content;
-
-      const { calendars, events } = this.state;
-
-      if (calendars) {
-          content = (
-              <div>
-                  <Row>
-                      <Col md={12}>
-                          {this.renderCalendars()}
-                      </Col>
-                  </Row>
-                  <Row>
-                      <Col md={6}>
-                          {this.renderDate('from')}
-                      </Col>
-                      <Col md={6}>
-                          {this.renderDate('to')}
-                      </Col>
-                  </Row>
-                  <Row>
-                      <Col md={12}>
-                          {events && events.length &&
-                          this.renderEvents()}
-                      </Col>
-                  </Row>
-              </div>
-          );
-      } else {
-          content = 'Loading calendars...';
-      }
-
-      return (
-          <div className="App-intro">
-              {content}
-          </div>
-      );
-  }
-
-  render() {
-      let content = (
-          this.token.access_token ?
-          this.renderHours() :
-          this.renderConnect()
-      );
-
-      return (
-          <Grid>
-              {content}
-          </Grid>
-      );
-  }
-}
+const App = ({ api, onChange }) => (
+    <Grid>
+        {(
+            api.isAuthenticated() ?
+            <Home onChange={onChange}/> :
+            <Login api={api}/>
+        )}
+    </Grid>
+);
 
 export default App;
