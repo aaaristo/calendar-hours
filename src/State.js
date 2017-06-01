@@ -9,8 +9,6 @@ class State extends Component {
 
     handleChange = ({ id, value }) => {
         this.setState({ [id]: value });
-
-        if ()
     }
 
     shouldComponentUpdate = (nextProps, nextState) => {
@@ -28,9 +26,10 @@ class State extends Component {
     }
 
     render() {
-        const { app, handleChange ...others } = this.props;
+        const { app: App, handleChange, ...others } = this.props;
+        console.log('state', this.state);
         return (
-            <app
+            <App
                 state={this.state}
                 onChange={this.handleChange}
                 {...others}

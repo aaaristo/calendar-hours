@@ -1,3 +1,5 @@
+import { sortBy } from 'underscore';
+
 const GOOGLE_OAUTH_CLIENT_ID = '926248487871-4l26d98gnc9p5623vj1hovgpulclvlr8.apps.googleusercontent.com';
 
 const parseAuthInfo = (location) => {

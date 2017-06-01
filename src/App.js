@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React from 'react';
 import {
     Accordion,
     Button,
@@ -13,7 +13,6 @@ import {
 
 import {
     sortBy,
-    extend,
     groupBy,
     reduce,
     keys,
@@ -30,7 +29,9 @@ const durationAsHours = ({ start, end }) => (
     ) / 3600) * 100) / 100
 );
 
-const EventGroup = ({ summary, hours, events }) => {
+// using an EventGroup component here breaks the Accordion...
+// looks like plain functions are a way better then components
+const renderGroup = ({ summary, hours, events }, i) => {
     const header = (
         <div>
             <span style={{ cursor: 'pointer' }}>{summary}</span>
@@ -53,7 +54,7 @@ const EventGroup = ({ summary, hours, events }) => {
                         <tr key={i}>
                             <td>{moment(event.start.dateTime).format('LLL')}</td>
                             <td>{moment(event.end.dateTime).format('LLL')}</td>
-                            <td>{this.durationAsHours(event)}</td>
+                            <td>{durationAsHours(event)}</td>
                             <td>{event.description}</td>
                         </tr>
                     ))}
@@ -75,7 +76,7 @@ const Events = ({ events }) => {
         groups.push({
             summary,
             hours: reduce(events, (hours, event) => (
-                hours + this.durationAsHours(event)
+                hours + durationAsHours(event)
             ), 0),
             events,
         });
@@ -86,12 +87,7 @@ const Events = ({ events }) => {
     return (
         <div id="event-list">
             <Accordion>
-                {groups.map((group, i) => (
-                    <EventGroup
-                        key={i}
-                        {...group}
-                    />
-                ))}
+                {groups.map(renderGroup)}
             </Accordion>
         </div>
     );
@@ -112,7 +108,7 @@ const SelectDate = ({ id, value, onChange }) => (
 
 const SelectCalendar = ({ calendars, calendar_id, onChange }) => (
     <FormGroup
-        controlId="calendars"
+        controlId="calendar_id"
     >
       <FormControl
           componentClass="select"
@@ -127,10 +123,15 @@ const SelectCalendar = ({ calendars, calendar_id, onChange }) => (
     </FormGroup>
 );
 
-const Home = ({ onChange }) => {
+const Home = ({
+    calendars,
+    events,
+    calendar_id,
+    from,
+    to,
+    onChange
+}) => {
     let content;
-
-    const { calendars, events, calendar_id } = this.state;
 
     if (calendars) {
         content = (
@@ -188,11 +189,11 @@ const Login = ({ api }) => (
     </p>
 );
 
-const App = ({ api, onChange }) => (
+const App = ({ state, api, onChange }) => (
     <Grid>
         {(
             api.isAuthenticated() ?
-            <Home onChange={onChange}/> :
+            <Home onChange={onChange} {...state}/> :
             <Login api={api}/>
         )}
     </Grid>

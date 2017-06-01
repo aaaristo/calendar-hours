@@ -3,16 +3,17 @@ import ReactDOM from 'react-dom';
 import App from './App';
 import State from './State';
 import registerServiceWorker from './registerServiceWorker';
+import moment from 'moment';
+import * as api from './api';
 import './index.css';
-import api from './api';
 
 const handleUnexpectedError = (err) => {
     console.log('unexpected error', err);
     alert('something went wrong');
 };
 
-const handleStateChange = async ({ calendar_id, from, to }) => {
-    if (!calendar_id) return;
+const handleStateChange = async ({ calendar_id, from, to }, { calendar_id: previous_calendar_id }) => {
+    if (!calendar_id || previous_calendar_id === calendar_id) return;
 
     const events = await api.fetchCalendarEvents(calendar_id, from, to);
 
@@ -28,7 +29,11 @@ const bootstrap = async () => {
 
     ReactDOM.render(
         <State
-            initialState={{ calendars }}
+            initialState={{
+                calendars,
+                from: moment().startOf('isoweek').toISOString(),
+                to: moment().toISOString(),
+            }}
             handleChange={handleStateChange}
             app={App}
             api={api}
